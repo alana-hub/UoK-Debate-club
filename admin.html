@@ -11,16 +11,17 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="icon" href="club-logo.svg" type="image/svg+xml" />
+    <link rel="icon" href="/assets/club-logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="main.js" defer></script>
   </head>
   <body data-page="admin">
     <div class="app-shell">
       <header class="topbar glass">
-        <div class="brand-logo-wrap"><img class="brand-logo" src="club-logo.svg" alt="University of Kigali Debate Club logo" /></div>
+        <div class="brand-logo-wrap"><img class="brand-logo" src="assets/club-logo.svg" alt="University of Kigali Debate Club logo" /></div>
         <div>
           <h1>Admin Control Center</h1>
           <p class="muted">Manage events, attendance, members, posters, and reports.</p>
@@ -54,11 +55,12 @@
           </div>
           <div>
             <h3>Member Management</h3>
+            <p class="muted">Members are created through self-service signup. Admins can update existing member profiles here.</p>
             <form id="memberForm" class="stack-sm">
               <input type="hidden" id="memberId" />
               <label>Name <input id="memberName" required /></label>
               <label>Registration Number <input id="memberReg" required /></label>
-              <button class="btn btn-primary" type="submit">Save Member</button>
+              <button class="btn btn-primary" type="submit">Update Member</button>
             </form>
             <div id="memberList" class="list compact"></div>
           </div>
@@ -105,7 +107,7 @@
             <label>Minimum attendance % for certificate <input id="certificateThreshold" type="number" min="1" max="100" value="75" /></label>
             <button id="generateReportBtn" class="btn btn-primary">Generate PDF Report</button>
             <button id="downloadCsvBtn" class="btn btn-secondary">Download CSV</button>
-            <button id="generateCertificatesBtn" class="btn btn-secondary">Generate Certificates</button>
+            <button id="generateCertificatesBtn" class="btn btn-secondary">Download Certificates PDF</button>
           </div>
           <div id="reportOutput" class="list"></div>
         </section>
