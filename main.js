@@ -524,6 +524,7 @@ async function saveEvent(e) {
   const topic = document.getElementById('eventTopic').value.trim();
   const dateTime = document.getElementById('eventDateTime').value;
   const currentImageUrl = document.getElementById('eventImageUrl').value.trim();
+  const existingQrToken = document.getElementById('eventQrToken').value.trim();
   const imageFile = document.getElementById('eventImageFile').files?.[0];
   const description = document.getElementById('eventDescription').value.trim();
   const expiryMins = Number(document.getElementById('eventExpiry').value || 120);
@@ -541,13 +542,15 @@ async function saveEvent(e) {
   setButtonLoading(submitBtn, true);
   try {
     const imageUrl = imageFile ? await uploadImageToStorage(imageFile, 'events') : currentImageUrl;
+    const eventStart = new Date(dateTime);
+    const tokenExpiry = new Date(eventStart.getTime() + expiryMins * 60_000);
     const payload = {
       topic,
       date_time: toISO(dateTime),
       image_url: imageUrl,
       description,
-      qr_token: randomToken(),
-      token_expiry: new Date(Date.now() + expiryMins * 60_000).toISOString()
+      qr_token: existingQrToken || randomToken(),
+      token_expiry: tokenExpiry.toISOString()
     };
 
     const query = id ? supabaseClient.from('events').update(payload).eq('id', id) : supabaseClient.from('events').insert(payload);
@@ -556,6 +559,7 @@ async function saveEvent(e) {
     e.target.reset();
     document.getElementById('eventId').value = '';
     document.getElementById('eventImageUrl').value = '';
+    document.getElementById('eventQrToken').value = '';
     await loadEventsAdmin();
     notify('Event saved.', 'success');
   } catch (err) {
@@ -622,7 +626,10 @@ async function loadEventsAdmin() {
       document.getElementById('eventTopic').value = ev.topic;
       document.getElementById('eventDateTime').value = new Date(ev.date_time).toISOString().slice(0, 16);
       document.getElementById('eventImageUrl').value = ev.image_url;
+      document.getElementById('eventQrToken').value = ev.qr_token;
       document.getElementById('eventDescription').value = ev.description || '';
+      const expiryMinutes = Math.max(5, Math.round((new Date(ev.token_expiry).getTime() - new Date(ev.date_time).getTime()) / 60_000));
+      document.getElementById('eventExpiry').value = Number.isFinite(expiryMinutes) ? expiryMinutes : 120;
     })
   );
 }
