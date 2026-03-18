@@ -279,7 +279,10 @@ async function loadFeed(filter = 'all') {
     const [{ data: events }, { data: posts }] = await Promise.all([
       safeRequest(supabaseClient.from('events').select('*').order('date_time', { ascending: false }), 'Could not fetch events'),
       safeRequest(
-        supabaseClient.from('posts').select('*, users(name)').order('created_at', { ascending: false }),
+        supabaseClient
+          .from('posts')
+          .select('*, author:users!posts_author_id_fkey(name)')
+          .order('created_at', { ascending: false }),
         'Could not fetch posts'
       )
     ]);
@@ -344,7 +347,7 @@ function renderFeed(feed) {
         <img src="${sanitizeText(item.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=1400')}" alt="${sanitizeText(item.title)}" loading="lazy" />
         <div class="card-content">
           <h3 class="card-title">${sanitizeText(item.title)}</h3>
-          <p class="muted">${sanitizeText(item.users?.name || 'Club Team')} · ${formatDate(item.created_at)}</p>
+          <p class="muted">${sanitizeText(item.author?.name || 'Club Team')} · ${formatDate(item.created_at)}</p>
           <p>${sanitizeText(item.content)}</p>
           <div class="card-actions">
             <span class="badge info">${item.type === 'discussion' ? 'New Discussion' : 'Notice'}</span>
@@ -753,7 +756,7 @@ async function savePost(e) {
 async function loadPosts() {
   const { data, error } = await supabaseClient
     .from('posts')
-    .select('*, events(topic), users(name)')
+    .select('*, events(topic), author:users!posts_author_id_fkey(name)')
     .order('created_at', { ascending: false });
   if (error) {
     notify(error.message, 'error');
@@ -772,7 +775,7 @@ async function loadPosts() {
         <strong>${sanitizeText(post.title)}</strong>
         ${post.image_url ? `<img src="${sanitizeText(post.image_url)}" alt="${sanitizeText(post.title)}" style="width:88px;height:88px;object-fit:cover;border-radius:12px;margin-top:8px" />` : ''}
         <p>${sanitizeText(post.content)}</p>
-        <small class="muted">by ${sanitizeText(post.users?.name || 'Admin')} · ${formatDate(post.created_at)}</small>
+        <small class="muted">by ${sanitizeText(post.author?.name || 'Admin')} · ${formatDate(post.created_at)}</small>
       </div>
       <div class="card-actions">
         <button class="btn btn-secondary" data-edit-post="${post.id}">Edit</button>
