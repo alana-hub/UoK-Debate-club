@@ -45,9 +45,11 @@
             <h3>Create / Edit Event</h3>
             <form id="eventForm" class="stack-sm">
               <input type="hidden" id="eventId" />
+              <input type="hidden" id="eventImageUrl" />
               <label>Topic <input id="eventTopic" required /></label>
               <label>Date & Time <input id="eventDateTime" type="datetime-local" required /></label>
-              <label>Image URL <input id="eventImage" type="url" required /></label>
+              <label>Event Poster <input id="eventImageFile" type="file" accept="image/*" /></label>
+              <p class="muted">Upload an event poster to Supabase Storage. Leave empty when editing to keep the current image.</p>
               <label>Description <textarea id="eventDescription" rows="3" required></textarea></label>
               <label>QR Expiry (minutes) <input id="eventExpiry" type="number" min="5" value="120" /></label>
               <button class="btn btn-primary" type="submit">Save Event</button>
@@ -71,6 +73,7 @@
             <h3>Post Management</h3>
             <form id="postForm" class="stack-sm">
               <input type="hidden" id="postId" />
+              <input type="hidden" id="postImageUrl" />
               <label>Title <input id="postTitle" required /></label>
               <label>Type
                 <select id="postType" required>
@@ -81,6 +84,8 @@
               <label>Linked Event
                 <select id="postEvent"></select>
               </label>
+              <label>Post Image <input id="postImageFile" type="file" accept="image/*" /></label>
+              <p class="muted">Upload an image from storage for the event/post, similar to a social post.</p>
               <label>Content <textarea id="postContent" rows="3" required></textarea></label>
               <button class="btn btn-primary" type="submit">Save Post</button>
             </form>
