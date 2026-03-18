@@ -9,6 +9,7 @@
 const APP_CONFIG = {
   supabaseUrl: window.SUPABASE_URL || 'https://otxicrplmjfydhfzpriv.supabase.co',
   supabaseAnonKey: window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90eGljcnBsbWpmeWRoZnpwcml2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NTYzMjgsImV4cCI6MjA4OTIzMjMyOH0.GY7td6uECBfttZ2ii82h2utH8dqB0F55iACr1qb5mds',
+  storageBucket: window.SUPABASE_STORAGE_BUCKET || 'club-media',
   maxTextLength: 2000
 };
 
@@ -52,6 +53,31 @@ function isValidUrl(url) {
   } catch {
     return false;
   }
+}
+
+function sanitizeFileName(name = 'upload') {
+  return name.toLowerCase().replace(/[^a-z0-9.\-_]+/g, '-').replace(/-+/g, '-');
+}
+
+async function uploadImageToStorage(file, folder) {
+  if (!file) return null;
+  if (!file.type.startsWith('image/')) throw new Error('Please upload a valid image file.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Image must be 5 MB or smaller.');
+
+  const extension = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+  const filePath = `${folder}/${Date.now()}-${crypto.randomUUID()}.${sanitizeFileName(extension)}`;
+
+  await safeRequest(
+    supabaseClient.storage.from(APP_CONFIG.storageBucket).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    }),
+    'Image upload failed'
+  );
+
+  const { data } = supabaseClient.storage.from(APP_CONFIG.storageBucket).getPublicUrl(filePath);
+  if (!data?.publicUrl) throw new Error('Could not retrieve uploaded image URL.');
+  return data.publicUrl;
 }
 
 function notify(message, type = 'info') {
@@ -315,7 +341,7 @@ function renderFeed(feed) {
         </div>`;
     } else {
       card.innerHTML = `
-        <img src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=1400" alt="Discussion" loading="lazy" />
+        <img src="${sanitizeText(item.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=1400')}" alt="${sanitizeText(item.title)}" loading="lazy" />
         <div class="card-content">
           <h3 class="card-title">${sanitizeText(item.title)}</h3>
           <p class="muted">${sanitizeText(item.users?.name || 'Club Team')} · ${formatDate(item.created_at)}</p>
@@ -500,17 +526,24 @@ async function saveEvent(e) {
   const id = document.getElementById('eventId').value || undefined;
   const topic = document.getElementById('eventTopic').value.trim();
   const dateTime = document.getElementById('eventDateTime').value;
-  const imageUrl = document.getElementById('eventImage').value.trim();
+  const currentImageUrl = document.getElementById('eventImageUrl').value.trim();
+  const imageFile = document.getElementById('eventImageFile').files?.[0];
   const description = document.getElementById('eventDescription').value.trim();
   const expiryMins = Number(document.getElementById('eventExpiry').value || 120);
 
-  if (!topic || !dateTime || !isValidUrl(imageUrl) || description.length > APP_CONFIG.maxTextLength) {
+  if (!topic || !dateTime || description.length > APP_CONFIG.maxTextLength) {
     notify('Please provide valid event inputs.', 'error');
+    return;
+  }
+
+  if (!imageFile && !currentImageUrl) {
+    notify('Upload an event poster before saving the event.', 'error');
     return;
   }
 
   setButtonLoading(submitBtn, true);
   try {
+    const imageUrl = imageFile ? await uploadImageToStorage(imageFile, 'events') : currentImageUrl;
     const payload = {
       topic,
       date_time: toISO(dateTime),
@@ -525,6 +558,7 @@ async function saveEvent(e) {
 
     e.target.reset();
     document.getElementById('eventId').value = '';
+    document.getElementById('eventImageUrl').value = '';
     await loadEventsAdmin();
     notify('Event saved.', 'success');
   } catch (err) {
@@ -590,7 +624,7 @@ async function loadEventsAdmin() {
       document.getElementById('eventId').value = ev.id;
       document.getElementById('eventTopic').value = ev.topic;
       document.getElementById('eventDateTime').value = new Date(ev.date_time).toISOString().slice(0, 16);
-      document.getElementById('eventImage').value = ev.image_url;
+      document.getElementById('eventImageUrl').value = ev.image_url;
       document.getElementById('eventDescription').value = ev.description || '';
     })
   );
@@ -676,6 +710,8 @@ async function savePost(e) {
   const title = document.getElementById('postTitle').value.trim();
   const type = document.getElementById('postType').value;
   const eventId = document.getElementById('postEvent').value || null;
+  const currentImageUrl = document.getElementById('postImageUrl').value.trim();
+  const imageFile = document.getElementById('postImageFile').files?.[0];
   const content = document.getElementById('postContent').value.trim();
 
   if (!title || !['normal', 'discussion'].includes(type) || !content || content.length > APP_CONFIG.maxTextLength) {
@@ -683,9 +719,15 @@ async function savePost(e) {
     return;
   }
 
+  if (!imageFile && !currentImageUrl) {
+    notify('Upload an image for the post before saving it.', 'error');
+    return;
+  }
+
   setButtonLoading(submitBtn, true);
   try {
-    const payload = { title, type, event_id: eventId, content, author_id: state.currentUser.id };
+    const imageUrl = imageFile ? await uploadImageToStorage(imageFile, 'posts') : currentImageUrl;
+    const payload = { title, type, event_id: eventId, content, image_url: imageUrl, author_id: state.currentUser.id };
     const query = id
       ? supabaseClient.from('posts').update(payload).eq('id', id)
       : supabaseClient.from('posts').insert(payload).select().single();
@@ -698,6 +740,7 @@ async function savePost(e) {
 
     e.target.reset();
     document.getElementById('postId').value = '';
+    document.getElementById('postImageUrl').value = '';
     await loadPosts();
     notify('Post saved.', 'success');
   } catch (err) {
@@ -727,6 +770,7 @@ async function loadPosts() {
       <div>
         <span class="badge info">${sanitizeText(post.type)}</span>
         <strong>${sanitizeText(post.title)}</strong>
+        ${post.image_url ? `<img src="${sanitizeText(post.image_url)}" alt="${sanitizeText(post.title)}" style="width:88px;height:88px;object-fit:cover;border-radius:12px;margin-top:8px" />` : ''}
         <p>${sanitizeText(post.content)}</p>
         <small class="muted">by ${sanitizeText(post.users?.name || 'Admin')} · ${formatDate(post.created_at)}</small>
       </div>
@@ -755,6 +799,7 @@ async function loadPosts() {
       document.getElementById('postTitle').value = post.title;
       document.getElementById('postType').value = post.type;
       document.getElementById('postEvent').value = post.event_id || '';
+      document.getElementById('postImageUrl').value = post.image_url || '';
       document.getElementById('postContent').value = post.content;
     })
   );
@@ -956,6 +1001,14 @@ async function initDiscussionPage() {
     document.getElementById('discussionTitle').textContent = post.title;
     document.getElementById('discussionMeta').textContent = `Posted on ${formatDate(post.created_at)}`;
     document.getElementById('discussionDescription').textContent = post.content;
+    const discussionImage = document.getElementById('discussionImage');
+    if (post.image_url) {
+      discussionImage.src = post.image_url;
+      discussionImage.classList.remove('hidden');
+    } else {
+      discussionImage.removeAttribute('src');
+      discussionImage.classList.add('hidden');
+    }
 
     await renderMessages(chat.id);
     bindRealtime(chat.id);
