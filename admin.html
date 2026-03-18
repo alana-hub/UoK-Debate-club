@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Debate Club | Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="/assets/club-logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+    <script src="main.js" defer></script>
+  </head>
+  <body data-page="admin">
+    <div class="app-shell">
+      <header class="topbar glass">
+        <div class="brand-logo-wrap"><img class="brand-logo" src="assets/club-logo.svg" alt="University of Kigali Debate Club logo" /></div>
+        <div>
+          <h1>Admin Control Center</h1>
+          <p class="muted">Manage events, attendance, members, posters, and reports.</p>
+        </div>
+        <button id="logoutBtn" class="btn btn-secondary hidden">Logout</button>
+      </header>
+
+      <section id="adminAuthSection" class="panel auth-panel">
+        <h2>Admin Sign In</h2>
+        <form id="adminLoginForm" class="stack-sm">
+          <label>Email <input id="adminEmail" type="email" required /></label>
+          <label>Registration Number <input id="adminRegNo" required /></label>
+          <label>Password <input id="adminPassword" type="password" required /></label>
+          <button class="btn btn-primary" type="submit">Sign In as Admin</button>
+        </form>
+      </section>
+
+      <main id="adminDashboard" class="hidden">
+        <section class="panel two-col">
+          <div>
+            <h3>Create / Edit Event</h3>
+            <form id="eventForm" class="stack-sm">
+              <input type="hidden" id="eventId" />
+              <label>Topic <input id="eventTopic" required /></label>
+              <label>Date & Time <input id="eventDateTime" type="datetime-local" required /></label>
+              <label>Image URL <input id="eventImage" type="url" required /></label>
+              <label>Description <textarea id="eventDescription" rows="3" required></textarea></label>
+              <label>QR Expiry (minutes) <input id="eventExpiry" type="number" min="5" value="120" /></label>
+              <button class="btn btn-primary" type="submit">Save Event</button>
+            </form>
+          </div>
+          <div>
+            <h3>Member Management</h3>
+            <form id="memberForm" class="stack-sm">
+              <input type="hidden" id="memberId" />
+              <label>Name <input id="memberName" required /></label>
+              <label>Registration Number <input id="memberReg" required /></label>
+              <button class="btn btn-primary" type="submit">Save Member</button>
+            </form>
+            <div id="memberList" class="list compact"></div>
+          </div>
+        </section>
+
+        <section class="panel two-col">
+          <div>
+            <h3>Post Management</h3>
+            <form id="postForm" class="stack-sm">
+              <input type="hidden" id="postId" />
+              <label>Title <input id="postTitle" required /></label>
+              <label>Type
+                <select id="postType" required>
+                  <option value="normal">Normal Poster</option>
+                  <option value="discussion">Discussion Poster</option>
+                </select>
+              </label>
+              <label>Linked Event
+                <select id="postEvent"></select>
+              </label>
+              <label>Content <textarea id="postContent" rows="3" required></textarea></label>
+              <button class="btn btn-primary" type="submit">Save Post</button>
+            </form>
+            <div id="postList" class="list"></div>
+          </div>
+          <div>
+            <h3>Attendance Ops</h3>
+            <form id="manualAttendanceForm" class="stack-sm">
+              <label>Event
+                <select id="manualEvent" required></select>
+              </label>
+              <label>Member
+                <select id="manualMember" required></select>
+              </label>
+              <button class="btn btn-primary" type="submit">Mark Manual Attendance</button>
+            </form>
+            <div id="eventList" class="list"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>Reports & Certificates</h3>
+          <div class="toolbar-row">
+            <label>Minimum attendance % for certificate <input id="certificateThreshold" type="number" min="1" max="100" value="75" /></label>
+            <button id="generateReportBtn" class="btn btn-primary">Generate PDF Report</button>
+            <button id="downloadCsvBtn" class="btn btn-secondary">Download CSV</button>
+            <button id="generateCertificatesBtn" class="btn btn-secondary">Generate Certificates</button>
+          </div>
+          <div id="reportOutput" class="list"></div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

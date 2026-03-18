@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debate Club | Discussion Room</title>
+    <link rel="icon" href="/assets/club-logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="main.js" defer></script>
+  </head>
+  <body data-page="discussion">
+    <div class="app-shell">
+      <header class="topbar glass">
+        <div class="brand-logo-wrap"><img class="brand-logo" src="assets/club-logo.svg" alt="University of Kigali Debate Club logo" /></div>
+        <div>
+          <h1 id="discussionTitle">Discussion Room</h1>
+          <p id="discussionMeta" class="muted"></p>
+        </div>
+        <a href="index.html" class="btn btn-secondary">Back</a>
+      </header>
+
+      <section class="panel">
+        <p id="discussionDescription" class="muted"></p>
+      </section>
+
+      <section class="panel chat-shell">
+        <div id="chatMessages" class="chat-messages"></div>
+        <form id="chatForm" class="chat-form">
+          <input id="chatInput" placeholder="Share your argument..." required />
+          <button class="btn btn-primary" type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+  </body>
+</html>

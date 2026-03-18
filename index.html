@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>University Debate Club Attendance & Discussion Platform</title>
+    <meta
+      name="description"
+      content="University debate club platform for event attendance, QR check-ins, and topic discussions with secure member and admin dashboards powered by Supabase."
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="color-scheme" content="light" />
+    <link rel="canonical" href="https://yourdomain.com/index.html" />
+
+    <meta property="og:title" content="University Debate Club Attendance & Discussion Platform" />
+    <meta
+      property="og:description"
+      content="Manage debate events, attendance tracking, and real-time discussions in one secure university club platform."
+    />
+    <meta property="og:image" content="https://yourdomain.com/assets/club-logo.svg" />
+    <meta property="og:url" content="https://yourdomain.com/index.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Debate Club Hub" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="University Debate Club Attendance & Discussion Platform" />
+    <meta
+      name="twitter:description"
+      content="Track attendance and join real-time debate discussions through a secure Supabase-powered club platform."
+    />
+    <meta name="twitter:image" content="https://yourdomain.com/assets/club-logo.svg" />
+
+    <link rel="icon" href="/assets/club-logo.svg" sizes="any" />
+    <link rel="icon" type="image/png" href="/assets/club-logo.svg" />
+    <link rel="apple-touch-icon" href="/assets/club-logo.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <script src="main.js" defer></script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "University Debate Club",
+        "url": "https://yourdomain.com/",
+        "logo": "https://yourdomain.com/assets/club-logo.svg",
+        "sameAs": [
+          "https://www.instagram.com/yourdebateclub",
+          "https://www.linkedin.com/school/your-university"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Debate Club Hub",
+        "url": "https://yourdomain.com/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://yourdomain.com/index.html?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+  </head>
+  <body data-page="member">
+    <div class="app-shell">
+      <header class="topbar glass">
+        <div class="brand-logo-wrap"><img class="brand-logo" src="assets/club-logo.svg" alt="University of Kigali Debate Club logo" /></div>
+        <div>
+          <h1>Debate Club Hub</h1>
+          <p class="muted">Attendance, events, and discussions in one place.</p>
+        </div>
+        <div class="top-actions">
+          <button id="logoutBtn" class="btn btn-secondary hidden">Logout</button>
+        </div>
+      </header>
+
+      <section id="memberAuthSection" class="panel auth-panel">
+        <h2>Member Access</h2>
+        <p class="muted">Create account once, then login with email + password.</p>
+
+        <div class="stack-sm" style="margin-bottom: 14px">
+          <button id="showMemberLoginBtn" class="btn btn-secondary" type="button">I already have an account</button>
+          <button id="showMemberSignupBtn" class="btn btn-primary" type="button">Create member account</button>
+        </div>
+
+        <form id="memberLoginForm" class="stack-sm">
+          <h3 style="margin:0">Login</h3>
+          <label>Email <input id="memberEmail" type="email" required placeholder="name@university.edu" /></label>
+          <label>Password <input id="memberPassword" type="password" minlength="8" required /></label>
+          <button class="btn btn-primary" type="submit">Sign In</button>
+        </form>
+
+        <form id="memberSignupForm" class="stack-sm hidden" style="margin-top: 12px">
+          <h3 style="margin:0">Create Account</h3>
+          <label>Full Name <input id="signupName" required placeholder="Jane Doe" /></label>
+          <label>Email <input id="signupEmail" type="email" required placeholder="name@university.edu" /></label>
+          <label>Registration Number <input id="signupRegNo" required placeholder="e.g. 22CSE145" /></label>
+          <label>Password <input id="signupPassword" type="password" minlength="8" required /></label>
+          <button class="btn btn-primary" type="submit">Create Account</button>
+        </form>
+      </section>
+
+      <main id="memberDashboard" class="hidden">
+        <section class="panel stats-grid">
+          <article>
+            <h3>Attendance</h3>
+            <p class="metric" id="attendancePercent">0%</p>
+            <p class="muted">Your attendance rate across all sessions.</p>
+          </article>
+          <article>
+            <h3>Upcoming Events</h3>
+            <p class="metric" id="upcomingCount">0</p>
+            <p class="muted">Sessions scheduled from today onward.</p>
+          </article>
+          <article>
+            <h3>Discussions</h3>
+            <p class="metric" id="discussionCount">0</p>
+            <p class="muted">Active topic rooms with live chat.</p>
+          </article>
+        </section>
+
+        <section class="panel toolbar">
+          <div class="filters">
+            <button class="chip active" data-filter="all">All</button>
+            <button class="chip" data-filter="upcoming">Upcoming</button>
+            <button class="chip" data-filter="past">Past</button>
+            <button class="chip" data-filter="discussion">Discussion Posts</button>
+          </div>
+        </section>
+
+        <section id="feedGrid" class="feed-grid"></section>
+      </main>
+    </div>
+
+    <dialog id="eventModal" class="modal">
+      <article>
+        <button id="closeModalBtn" class="modal-close" aria-label="Close">×</button>
+        <div id="modalContent"></div>
+      </article>
+    </dialog>
+
+    <dialog id="qrScannerModal" class="modal">
+      <article>
+        <button id="closeScannerBtn" class="modal-close" aria-label="Close">×</button>
+        <h3>Scan QR to Mark Attendance</h3>
+        <div id="qrReader" class="qr-box"></div>
+        <p id="scannerStatus" class="muted">Align event QR code within the frame.</p>
+      </article>
+    </dialog>
+  </body>
+</html>
