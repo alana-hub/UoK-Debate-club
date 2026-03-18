@@ -208,7 +208,7 @@ async function memberSignup(e) {
       'Account creation failed'
     );
 
-    notify('Account created. Check your email for verification if enabled, then sign in.', 'success');
+    notify('Account created successfully. Please sign in with your email and password.', 'success');
     e.currentTarget.reset();
     document.getElementById('showMemberLoginBtn')?.click();
   } catch (err) {
@@ -234,7 +234,7 @@ async function fetchAttendanceSet(eventIds = []) {
   state.attendanceSet = new Set();
   if (!state.currentUser || eventIds.length === 0) return;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('attendance')
     .select('event_id')
     .eq('user_id', state.currentUser.id)
@@ -608,15 +608,20 @@ async function saveMember(e) {
     return;
   }
 
+  if (!id) {
+    notify('Select an existing member from the list before updating their profile.', 'error');
+    return;
+  }
+
   setButtonLoading(submitBtn, true);
   try {
-    const payload = { name, reg_no: regNo, role: 'member', email: `${regNo}@member.debate.local` };
-    const query = id ? supabaseClient.from('users').update(payload).eq('id', id) : supabaseClient.from('users').insert(payload);
+    const payload = { name, reg_no: regNo, role: 'member' };
+    const query = supabaseClient.from('users').update(payload).eq('id', id);
     await safeRequest(query, 'Saving member failed');
 
     e.target.reset();
     document.getElementById('memberId').value = '';
-    await loadMembers();
+    await loadMembers(true);
     notify('Member saved.', 'success');
   } catch (err) {
     notify(err.message, 'error');
@@ -625,7 +630,7 @@ async function saveMember(e) {
   }
 }
 
-async function loadMembers() {
+async function loadMembers(clearForm = false) {
   const { data, error } = await supabaseClient.from('users').select('*').eq('role', 'member').order('created_at', { ascending: false });
   if (error) {
     notify(error.message, 'error');
@@ -651,6 +656,7 @@ async function loadMembers() {
   });
 
   if (!data?.length) list.innerHTML = '<p class="muted">No members found.</p>';
+  if (clearForm) document.getElementById('memberForm')?.reset();
 
   list.querySelectorAll('[data-edit-member]').forEach((btn) =>
     btn.addEventListener('click', () => {
@@ -702,7 +708,7 @@ async function savePost(e) {
 }
 
 async function loadPosts() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('posts')
     .select('*, events(topic), users(name)')
     .order('created_at', { ascending: false });
@@ -807,24 +813,29 @@ async function downloadAttendanceCSV() {
 
 async function generatePrintableReport() {
   try {
-    const { data: members } = await safeRequest(
-      supabaseClient.from('users').select('id,name,reg_no').eq('role', 'member'),
-      'Could not load members'
-    );
-    const { data: attendance } = await safeRequest(supabaseClient.from('attendance').select('user_id,event_id'), 'Could not load attendance');
-    const { data: events } = await safeRequest(supabaseClient.from('events').select('id'), 'Could not load events');
-
-    const totalEvents = events?.length || 1;
+    const { members, attendance, totalEvents } = await getAttendanceReportData();
     const reportBox = document.getElementById('reportOutput');
     reportBox.innerHTML = '';
 
-    (members || []).forEach((m) => {
-      const count = (attendance || []).filter((a) => a.user_id === m.id).length;
+    const rows = (members || []).map((m) => {
+      const count = attendance.filter((a) => a.user_id === m.id).length;
       const pct = Math.round((count / totalEvents) * 100);
       reportBox.innerHTML += `<div class="list-item compact"><span>${sanitizeText(m.name)} (${sanitizeText(m.reg_no)})</span><strong>${pct}%</strong></div>`;
+      return { ...m, attendanceCount: count, attendancePct: pct };
     });
 
-    window.print();
+    downloadPdfDocument({
+      filename: `attendance-report-${Date.now()}.pdf`,
+      title: 'Debate Club Attendance Report',
+      lines: [
+        `Generated: ${new Date().toLocaleString()}`,
+        `Total events counted: ${totalEvents}`,
+        '',
+        ...rows.map((row) => `${row.name} (${row.reg_no}) — ${row.attendanceCount}/${totalEvents} events (${row.attendancePct}%)`)
+      ]
+    });
+
+    notify('PDF report downloaded.', 'success');
   } catch (err) {
     notify(err.message, 'error');
   }
@@ -833,26 +844,92 @@ async function generatePrintableReport() {
 async function generateCertificates() {
   try {
     const threshold = Number(document.getElementById('certificateThreshold').value || 75);
-    const { data: members } = await safeRequest(
-      supabaseClient.from('users').select('id,name,reg_no').eq('role', 'member'),
-      'Could not load members'
-    );
-    const { data: attendance } = await safeRequest(supabaseClient.from('attendance').select('user_id,event_id'), 'Could not load attendance');
-    const { data: events } = await safeRequest(supabaseClient.from('events').select('id'), 'Could not load events');
-
-    const totalEvents = events?.length || 1;
+    const { members, attendance, totalEvents } = await getAttendanceReportData();
     const reportBox = document.getElementById('reportOutput');
     reportBox.innerHTML = '<h4>Certificate Eligible Members</h4>';
+    const eligible = [];
 
     (members || []).forEach((m) => {
-      const pct = Math.round(((attendance || []).filter((a) => a.user_id === m.id).length / totalEvents) * 100);
+      const pct = Math.round((attendance.filter((a) => a.user_id === m.id).length / totalEvents) * 100);
       if (pct >= threshold) {
         reportBox.innerHTML += `<div class="list-item compact"><strong>${sanitizeText(m.name)}</strong><span class="badge success">${pct}%</span></div>`;
+        eligible.push({ ...m, attendancePct: pct });
       }
     });
+
+    if (!eligible.length) {
+      reportBox.innerHTML += '<p class="muted">No members currently meet the certificate threshold.</p>';
+      notify('No members meet the certificate threshold.', 'info');
+      return;
+    }
+
+    const lines = eligible.flatMap((member, index) => [
+      `Certificate ${index + 1}`,
+      `${member.name} (${member.reg_no})`,
+      `Attendance: ${member.attendancePct}%`,
+      'Recognized for consistent participation in Debate Club activities.',
+      ''
+    ]);
+
+    downloadPdfDocument({
+      filename: `attendance-certificates-${Date.now()}.pdf`,
+      title: 'Debate Club Attendance Certificates',
+      lines
+    });
+    notify('Certificates PDF downloaded.', 'success');
   } catch (err) {
     notify(err.message, 'error');
   }
+}
+
+async function getAttendanceReportData() {
+  const { data: members } = await safeRequest(
+    supabaseClient.from('users').select('id,name,reg_no').eq('role', 'member'),
+    'Could not load members'
+  );
+  const { data: attendance } = await safeRequest(supabaseClient.from('attendance').select('user_id,event_id'), 'Could not load attendance');
+  const { data: events } = await safeRequest(supabaseClient.from('events').select('id'), 'Could not load events');
+
+  return {
+    members: members || [],
+    attendance: attendance || [],
+    totalEvents: Math.max(events?.length || 0, 1)
+  };
+}
+
+function downloadPdfDocument({ filename, title, lines }) {
+  const jsPdfApi = window.jspdf?.jsPDF;
+  if (!jsPdfApi) {
+    throw new Error('jsPDF failed to load. Refresh the page and try again.');
+  }
+
+  const doc = new jsPdfApi();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const wrappedLines = [];
+
+  lines.forEach((line) => {
+    const chunks = doc.splitTextToSize(String(line), 180);
+    if (!chunks.length) wrappedLines.push('');
+    else wrappedLines.push(...chunks);
+  });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(title, 15, 20);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+
+  let y = 30;
+  wrappedLines.forEach((line) => {
+    if (y > pageHeight - 15) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(line || ' ', 15, y);
+    y += 7;
+  });
+
+  doc.save(filename);
 }
 
 /* ---------------- Discussion chat ---------------- */
@@ -907,7 +984,7 @@ async function initDiscussionPage() {
 }
 
 async function renderMessages(chatId) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('messages')
     .select('*, users(name)')
     .eq('chat_id', chatId)
@@ -953,7 +1030,7 @@ function bindRealtime(chatId) {
     supabaseClient.removeChannel(state.realtimeChannel);
   }
 
-  state.realtimeChannel = supabase
+  state.realtimeChannel = supabaseClient
     .channel(`chat-${chatId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, async () => {
       await renderMessages(chatId);
